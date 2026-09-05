@@ -201,19 +201,11 @@ The following functionality was verified:
 
 ---
 
-### 🎮 Game Interface
+### 🎮 Game Interface & 🎥 Gameplay Demonstration
 
-The screenshot below shows the generated **Match-3 Power Puzzle** interface.
+The screenshot below shows the generated **Match-3 Power Puzzle** interface and The gameplay video demonstrates the working functionality of the generated application, including tile selection, swapping, matching, scoring, and cascading effects..
 
 refer the match3_power_puzzle Demo folder.
-
----
-
-### 🎥 Gameplay Demonstration
-
-The gameplay video demonstrates the working functionality of the generated application, including tile selection, swapping, matching, scoring, and cascading effects.
-
-**File:** `Match3_Power_Puzzle_Demo/GameplayDemo.mp4`
 
 ---
 
