@@ -205,14 +205,7 @@ The following functionality was verified:
 
 The screenshot below shows the generated **Match-3 Power Puzzle** interface.
 
-**File:** `Match3_Power_Puzzle_Demo/Screenshot 1.jpeg`
-
----
-
-**File:** `Match3_Power_Puzzle_Demo/Screenshot 2.jpeg`
-
----
-**File:** `Match3_Power_Puzzle_Demo/Screenshot 3.jpeg`
+refer the match3_power_puzzle Demo folder.
 
 ---
 
