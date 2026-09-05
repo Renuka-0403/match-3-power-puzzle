@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Match-3 Power Puzzle</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  .game-wrapper {
+    width: 100%;
+    max-width: 480px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .game-title {
+    color: #ffd700;
+    font-size: 24px;
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+    letter-spacing: 1px;
+  }
+
+  .game-panel {
+    background: #141a3a;
+    border-radius: 16px;
+    padding: 16px;
+    width: 100%;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  .stats-bar {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding: 0 8px;
+  }
+
+  .stat {
+    text-align: center;
+    flex: 1;
+  }
+
+  .stat-label {
+    color: #8b9bb4;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .stat-value {
+    color: #ffd700;
+    font-size: 28px;
+    font-weight: 800;
+    text-shadow: 0 2px 4px rgba(255, 215, 0, 0.2);
+    transition: transform 0.2s;
+  }
+
+  .stat-value.pop {
+    transform: scale(1.3);
+  }
+
+  .progress-container {
+    width: 100%;
+    height: 10px;
+    background: #0a0e27;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 16px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #ff8c42, #ffd700);
+    border-radius: 5px;
+    transition: width 0.5s ease;
+    box-shadow: 0 0 10px rgba(255, 140, 66, 0.4);
+  }
+
+  .board-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 8 / 6;
+    background: #0f1530;
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(6, 1fr);
+    gap: 4px;
+    width: 100%;
+    height: 100%;
+  }
+
+  .tile {
+    position: relative;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, opacity 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+
+  .tile::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .tile.selected {
+    transform: scale(1.12);
+    box-shadow: 0 0 16px rgba(255, 215, 0, 0.6), 0 4px 8px rgba(0,0,0,0.3);
+    z-index: 10;
+    border: 2px solid #ffd700;
+  }
+
+  .tile.matched {
+    animation: popOut 0.4s ease forwards;
+  }
+
+  .tile.empty {
+    opacity: 0;
+    pointer-events: none;
+    box-shadow: none;
+  }
+
+  .tile.new-tile {
+    animation: dropIn 0.4s ease-out;
+  }
+
+  @keyframes popOut {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.3); opacity: 0.8; filter: brightness(1.5); }
+    100% { transform: scale(0); opacity: 0; }
+  }
+
+  @keyframes dropIn {
+    0% { transform: translateY(-40px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+
+  @keyframes celebrate {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+
+  .tile svg {
+    width: 60%;
+    height: 60%;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+  }
+
+  /* Tile colors */
+  .tile-orange { background: #ff8c42; }
+  .tile-yellow { background: #ffd93d; }
+  .tile-cyan { background: #4ecdc4; }
+  .tile-pink { background: #ff6b9d; }
+  .tile-purple { background: #9b5de5; }
+  .tile-dark { background: #2d3436; }
+  .tile-blue { background: #3498db; }
+
+  .overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(10, 14, 39, 0.92);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    z-index: 100;
+    animation: fadeIn 0.5s ease;
+  }
+
+  .overlay.active {
+    display: flex;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .overlay-title {
+    font-size: 48px;
+    font-weight: 900;
+    margin-bottom: 16px;
+    text-align: center;
+    animation: celebrate 1.5s ease infinite;
+  }
+
+  .overlay-win { color: #ffd700; text-shadow: 0 0 20px rgba(255, 215, 0, 0.5); }
+  .overlay-lose { color: #ff6b6b; text-shadow: 0 0 20px rgba(255, 107, 107, 0.5); }
+
+  .overlay-score {
+    color: #fff;
+    font-size: 20px;
+    margin-bottom: 24px;
+  }
+
+  .btn {
+    background: linear-gradient(135deg, #ff8c42, #ff6b6b);
+    color: white;
+    border: none;
+    padding: 14px 36px;
+    font-size: 18px;
+    font-weight: 700;
+    border-radius: 30px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(255, 107, 107, 0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+  }
+
+  .btn:active {
+    transform: translateY(0);
+  }
+
+  .particles {
+    position: fixed;
+    top: 0; left: 0;
+    pointer-events: none;
+    z-index: 200;
+  }
+
+  .particle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    animation: particleFly 1s ease-out forwards;
+  }
+
+  @keyframes particleFly {
+    0% { transform: translate(0, 0) scale(1); opacity: 1; }
+    100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+  }
+
+  @media (max-width: 400px) {
+    .game-wrapper { padding: 8px; }
+    .game-title { font-size: 20px; }
+    .stat-value { font-size: 24px; }
+    .board-container { padding: 4px; gap: 3px; }
+    .tile { border-radius: 6px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="game-wrapper">
+  <div class="game-title">Match-3 Power Puzzle</div>
+  <div class="game-panel">
+    <div class="stats-bar">
+      <div class="stat">
+        <div class="stat-label">Score</div>
+        <div class="stat-value" id="score">860</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Target</div>
+        <div class="stat-value" id="target">2000</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Moves</div>
+        <div class="stat-value" id="moves">7</div>
+      </div>
+    </div>
+    <div class="progress-container">
+      <div class="progress-bar" id="progress" style="width: 43%;"></div>
+    </div>
+    <div class="board-container">
+      <div class="board" id="board"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="winOverlay">
+  <div class="overlay-title overlay-win">YOU WIN!</div>
+  <div class="overlay-score">Final Score: <span id="finalScoreWin">0</span></div>
+  <button class="btn" onclick="restartGame()">Play Again</button>
+</div>
+
+<div class="overlay" id="loseOverlay">
+  <div class="overlay-title overlay-lose">GAME OVER</div>
+  <div class="overlay-score">Final Score: <span id="finalScoreLose">0</span></div>
+  <button class="btn" onclick="restartGame()">Try Again</button>
+</div>
+
+<div class="particles" id="particles"></div>
+
+<script>
+// Game configuration
+const ROWS = 6;
+const COLS = 8;
+const TARGET_SCORE = 2000;
+const START_SCORE = 860;
+const START_MOVES = 7;
+
+// Tile types: 0=orange, 1=yellow, 2=cyan, 3=pink, 4=purple, 5=dark, 6=blue
+const TILE_TYPES = [
+  { id: 'orange', color: '#ff8c42', class: 'tile-orange', symbol: 'diamond', symbolColor: '#ffd700' },
+  { id: 'yellow', color: '#ffd93d', class: 'tile-yellow', symbol: 'star', symbolColor: '#ff8c42' },
+  { id: 'cyan', color: '#4ecdc4', class: 'tile-cyan', symbol: 'four-diamond', symbolColor: '#ffffff' },
+  { id: 'pink', color: '#ff6b9d', class: 'tile-pink', symbol: 'gem', symbolColor: '#4ecdc4' },
+  { id: 'purple', color: '#9b5de5', class: 'tile-purple', symbol: 'helmet', symbolColor: '#ffd93d' },
+  { id: 'dark', color: '#2d3436', class: 'tile-dark', symbol: 'rect', symbolColor: '#ffffff' },
+  { id: 'blue', color: '#3498db', class: 'tile-blue', symbol: 'diamond', symbolColor: '#ffffff' }
+];
+
+// Initial board (screenshot-inspired, valid state)
+const INITIAL_BOARD = [
+  [0, 1, 2, 3, 4, 5, 2, 1],
+  [6, 2, 1, 5, 2, 2, 1, 0],
+  [3, 1, 1, 0, 0, 5, 3, 1],
+  [3, 3, 2, 1, 6, 4, 1, 3],
+  [0, 5, 2, 1, 1, 4, 2, 4],
+  [0, 5, 1, 0, 6, 5, 4, 0]
+];
+
+let board = [];
+let score = START_SCORE;
+let moves = START_MOVES;
+let selectedTile = null;
+let isProcessing = false;
+let cascadeLevel = 0;
+
+// SVG symbols
+function getSymbolSVG(typeIdx) {
+  const type = TILE_TYPES[typeIdx];
+  const c = type.symbolColor;
+
+  if (type.symbol === 'diamond') {
+    return `<svg viewBox="0 0 24 24"><polygon points="12,2 22,12 12,22 2,12" fill="${c}"/></svg>`;
+  }
+  if (type.symbol === 'star') {
+    return `<svg viewBox="0 0 24 24"><polygon points="12,2 15,9 22,9 16,14 18,22 12,17 6,22 8,14 2,9 9,9" fill="${c}"/></svg>`;
+  }
+  if (type.symbol === 'four-diamond') {
+    return `<svg viewBox="0 0 24 24">
+      <polygon points="6,4 10,8 6,12 2,8" fill="${c}"/>
+      <polygon points="18,4 22,8 18,12 14,8" fill="${c}"/>
+      <polygon points="6,12 10,16 6,20 2,16" fill="${c}"/>
+      <polygon points="18,12 22,16 18,20 14,16" fill="${c}"/>
+    </svg>`;
+  }
+  if (type.symbol === 'gem') {
+    return `<svg viewBox="0 0 24 24">
+      <polygon points="12,2 20,8 20,16 12,22 4,16 4,8" fill="${c}"/>
+      <polygon points="12,2 20,8 4,8" fill="${c}" opacity="0.7"/>
+    </svg>`;
+  }
+  if (type.symbol === 'helmet') {
+    return `<svg viewBox="0 0 24 24">
+      <path d="M4 10 Q4 4 12 4 Q20 4 20 10 L20 14 Q20 16 18 16 L6 16 Q4 16 4 14 Z" fill="${c}"/>
+      <rect x="8" y="14" width="8" height="4" rx="1" fill="${c}" opacity="0.8"/>
+      <circle cx="12" cy="10" r="2" fill="#2d3436" opacity="0.3"/>
+    </svg>`;
+  }
+  if (type.symbol === 'rect') {
+    return `<svg viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="8" rx="2" fill="${c}"/></svg>`;
+  }
+  return '';
+}
+
+function initGame() {
+  score = START_SCORE;
+  moves = START_MOVES;
+  cascadeLevel = 0;
+  selectedTile = null;
+  isProcessing = false;
+
+  // Deep copy initial board
+  board = INITIAL_BOARD.map(row => [...row]);
+
+  updateUI();
+  renderBoard();
+
+  document.getElementById('winOverlay').classList.remove('active');
+  document.getElementById('loseOverlay').classList.remove('active');
+}
+
+function renderBoard() {
+  const boardEl = document.getElementById('board');
+  boardEl.innerHTML = '';
+
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const tile = document.createElement('div');
+      const val = board[r][c];
+
+      if (val === -1) {
+        tile.className = 'tile empty';
+      } else {
+        tile.className = `tile ${TILE_TYPES[val].class}`;
+        tile.innerHTML = getSymbolSVG(val);
+      }
+
+      tile.dataset.r = r;
+      tile.dataset.c = c;
+      tile.addEventListener('click', () => onTileClick(r, c));
+      tile.addEventListener('touchstart', (e) => { e.preventDefault(); onTileClick(r, c); }, {passive: false});
+      boardEl.appendChild(tile);
+    }
+  }
+}
+
+function getTileEl(r, c) {
+  return document.querySelector(`.tile[data-r="${r}"][data-c="${c}"]`);
+}
+
+function onTileClick(r, c) {
+  if (isProcessing || moves <= 0 || board[r][c] === -1) return;
+
+  const clicked = { r, c };
+
+  if (!selectedTile) {
+    selectedTile = clicked;
+    getTileEl(r, c).classList.add('selected');
+    return;
+  }
+
+  const sr = selectedTile.r, sc = selectedTile.c;
+  getTileEl(sr, sc).classList.remove('selected');
+
+  // Same tile clicked
+  if (sr === r && sc === c) {
+    selectedTile = null;
+    return;
+  }
+
+  // Check adjacency
+  const dr = Math.abs(r - sr);
+  const dc = Math.abs(c - sc);
+
+  if ((dr === 1 && dc === 0) || (dr === 0 && dc === 1)) {
+    selectedTile = null;
+    attemptSwap(sr, sc, r, c);
+  } else {
+    // Select new tile
+    selectedTile = clicked;
+    getTileEl(r, c).classList.add('selected');
+  }
+}
+
+async function attemptSwap(r1, c1, r2, c2) {
+  if (isProcessing) return;
+  isProcessing = true;
+
+  // Perform swap in data
+  [board[r1][c1], board[r2][c2]] = [board[r2][c2], board[r1][c1]];
+
+  // Animate swap
+  await animateSwap(r1, c1, r2, c2);
+
+  const matches = findMatches();
+
+  if (matches.length === 0) {
+    // Invalid swap - swap back
+    [board[r1][c1], board[r2][c2]] = [board[r2][c2], board[r1][c1]];
+    await animateSwap(r1, c1, r2, c2);
+    isProcessing = false;
+  } else {
+    // Valid swap
+    moves--;
+    updateUI();
+    await processMatches(matches);
+    checkGameState();
+    isProcessing = false;
+  }
+}
+
+function animateSwap(r1, c1, r2, c2) {
+  return new Promise(resolve => {
+    const el1 = getTileEl(r1, c1);
+    const el2 = getTileEl(r2, c2);
+
+    if (!el1 || !el2) {
+      resolve();
+      return;
+    }
+
+    const rect1 = el1.getBoundingClientRect();
+    const rect2 = el2.getBoundingClientRect();
+    const dx = rect2.left - rect1.left;
+    const dy = rect2.top - rect1.top;
+
+    el1.style.transition = 'transform 0.3s ease';
+    el2.style.transition = 'transform 0.3s ease';
+    el1.style.transform = `translate(${dx}px, ${dy}px)`;
+    el2.style.transform = `translate(${-dx}px, ${-dy}px)`;
+
+    setTimeout(() => {
+      el1.style.transform = '';
+      el2.style.transform = '';
+      el1.style.transition = 'none';
+      el2.style.transition = 'none';
+
+      // Swap inner content
+      const tmp = el1.innerHTML;
+      const tmpClass = el1.className;
+      el1.innerHTML = el2.innerHTML;
+      el1.className = el2.className;
+      el2.innerHTML = tmp;
+      el2.className = tmpClass;
+
+      // Update data attributes
+      el1.dataset.r = r2; el1.dataset.c = c2;
+      el2.dataset.r = r1; el2.dataset.c = c1;
+
+      setTimeout(() => {
+        el1.style.transition = '';
+        el2.style.transition = '';
+        resolve();
+      }, 20);
+    }, 300);
+  });
+}
+
+function findMatches() {
+  const matched = new Set();
+
+  // Horizontal
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS - 2; c++) {
+      const val = board[r][c];
+      if (val === -1) continue;
+      let count = 1;
+      while (c + count < COLS && board[r][c + count] === val) count++;
+      if (count >= 3) {
+        for (let i = 0; i < count; i++) matched.add(`${r},${c + i}`);
+      }
+    }
+  }
+
+  // Vertical
+  for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < ROWS - 2; r++) {
+      const val = board[r][c];
+      if (val === -1) continue;
+      let count = 1;
+      while (r + count < ROWS && board[r + count][c] === val) count++;
+      if (count >= 3) {
+        for (let i = 0; i < count; i++) matched.add(`${r + i},${c}`);
+      }
+    }
+  }
+
+  return Array.from(matched).map(s => s.split(',').map(Number));
+}
+
+async function processMatches(matches) {
+  cascadeLevel++;
+
+  // Calculate score
+  const matchCount = matches.length;
+  let points = 0;
+  if (matchCount === 3) points = 200;
+  else if (matchCount === 4) points = 500;
+  else if (matchCount >= 5) points = 1000;
+  else points = matchCount * 70;
+
+  // Cascade bonus
+  points = Math.floor(points * (1 + (cascadeLevel - 1) * 0.5));
+
+  score += points;
+  updateUI();
+  animateScorePop();
+
+  // Highlight matches
+  for (const [r, c] of matches) {
+    const el = getTileEl(r, c);
+    if (el) el.classList.add('matched');
+  }
+
+  // Spawn particles at match locations
+  for (const [r, c] of matches) {
+    const el = getTileEl(r, c);
+    if (el) spawnParticles(el);
+  }
+
+  await sleep(400);
+
+  // Remove matched tiles
+  for (const [r, c] of matches) {
+    board[r][c] = -1;
+  }
+
+  renderBoard();
+  await sleep(150);
+
+  // Apply gravity
+  await applyGravity();
+
+  // Fill new tiles
+  fillNewTiles();
+  renderBoard();
+  await sleep(300);
+
+  // Check for cascades
+  const newMatches = findMatches();
+  if (newMatches.length > 0) {
+    await processMatches(newMatches);
+  } else {
+    cascadeLevel = 0;
+  }
+}
+
+async function applyGravity() {
+  for (let c = 0; c < COLS; c++) {
+    let writeRow = ROWS - 1;
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (board[r][c] !== -1) {
+        if (r !== writeRow) {
+          board[writeRow][c] = board[r][c];
+          board[r][c] = -1;
+        }
+        writeRow--;
+      }
+    }
+  }
+}
+
+function fillNewTiles() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] === -1) {
+        board[r][c] = Math.floor(Math.random() * TILE_TYPES.length);
+      }
+    }
+  }
+}
+
+function updateUI() {
+  document.getElementById('score').textContent = score;
+  document.getElementById('moves').textContent = moves;
+  const progress = Math.min(100, (score / TARGET_SCORE) * 100);
+  document.getElementById('progress').style.width = progress + '%';
+}
+
+function animateScorePop() {
+  const el = document.getElementById('score');
+  el.classList.add('pop');
+  setTimeout(() => el.classList.remove('pop'), 200);
+}
+
+function checkGameState() {
+  if (score >= TARGET_SCORE) {
+    document.getElementById('finalScoreWin').textContent = score;
+    document.getElementById('winOverlay').classList.add('active');
+    spawnWinParticles();
+  } else if (moves <= 0) {
+    document.getElementById('finalScoreLose').textContent = score;
+    document.getElementById('loseOverlay').classList.add('active');
+  }
+}
+
+function spawnParticles(el) {
+  const rect = el.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const container = document.getElementById('particles');
+  const colors = ['#ffd700', '#ff8c42', '#4ecdc4', '#ff6b9d', '#9b5de5'];
+
+  for (let i = 0; i < 8; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = cx + 'px';
+    p.style.top = cy + 'px';
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    const angle = (Math.PI * 2 * i) / 8;
+    const dist = 40 + Math.random() * 40;
+    p.style.setProperty('--tx', Math.cos(angle) * dist + 'px');
+    p.style.setProperty('--ty', Math.sin(angle) * dist + 'px');
+    container.appendChild(p);
+    setTimeout(() => p.remove(), 1000);
+  }
+}
+
+function spawnWinParticles() {
+  const container = document.getElementById('particles');
+  const colors = ['#ffd700', '#ff8c42', '#4ecdc4', '#ff6b9d', '#9b5de5', '#3498db'];
+
+  for (let i = 0; i < 60; i++) {
+    setTimeout(() => {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.style.left = Math.random() * window.innerWidth + 'px';
+      p.style.top = -10 + 'px';
+      p.style.width = (6 + Math.random() * 8) + 'px';
+      p.style.height = p.style.width;
+      p.style.background = colors[Math.floor(Math.random() * colors.length)];
+      p.style.setProperty('--tx', (Math.random() - 0.5) * 200 + 'px');
+      p.style.setProperty('--ty', (300 + Math.random() * 400) + 'px');
+      container.appendChild(p);
+      setTimeout(() => p.remove(), 1000);
+    }, i * 30);
+  }
+}
+
+function restartGame() {
+  initGame();
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Start the game
+initGame();
+</script>
+</body>
+</html>
